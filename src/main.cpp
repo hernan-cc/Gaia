@@ -13,7 +13,6 @@ char ssid[] = "HCC";
 char pass[] = "caravana";
 
 BlynkTimer timer;
-//a;dfkj
 
 #include <SPI.h>
 #include <Wire.h>
