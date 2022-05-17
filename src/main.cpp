@@ -27,9 +27,17 @@ Adafruit_SH1106G display = Adafruit_SH1106G(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, 
 #include "DHTesp.h"
 DHTesp dht;
 
+// mantener VPD entre 0.5 y 0.7 con extractor
+
+
+// prender extractor siempre en rh > 70% durante 10 min
+
+
 float vpd;
 float temp;
 float hum;
+const uint8_t FAN = D4;
+const uint8_t LED = D6;
 
 
 float measureHum() {
@@ -69,7 +77,7 @@ void updateDisplay(float hum, float temp, float vpd){ //tiene que haber alguna f
   display.print(temp);
   display.setTextSize(2);display.println(" C");
   display.display();
-  delay(5000);
+  delay(2500);
 
   display.clearDisplay();
   display.setTextSize(2);
@@ -81,7 +89,7 @@ void updateDisplay(float hum, float temp, float vpd){ //tiene que haber alguna f
   display.print(hum);
   display.setTextSize(2);display.print(" %");
   display.display();
-  delay(5000);
+  delay(2500);
    
   display.clearDisplay();
   display.setTextSize(2);
@@ -93,19 +101,49 @@ void updateDisplay(float hum, float temp, float vpd){ //tiene que haber alguna f
   display.print(vpd);
   display.setTextSize(2);display.println(" kPa");
   display.display();
-  delay(5000);
+  delay(2500);
 
+}
+
+void getData() {
+  temp = measureTemp(); 
+  hum = measureHum();  
+  vpd = getVPD(hum, temp);
 }
 
 void sendData()
 {
-  temp = measureTemp(); 
-  hum = measureHum();  
-  vpd = getVPD(hum, temp);
   Blynk.virtualWrite(V4, vpd);  
   Blynk.virtualWrite(V3, temp);
   Blynk.virtualWrite(V2, hum);
-  updateDisplay(hum, temp, vpd);
+}
+
+
+void handleExhaust(float vpd){
+  float min = 0.5;
+  float max = 0.7 ; 
+  if (vpd <= min){
+    digitalWrite(FAN, HIGH);
+    Blynk.virtualWrite(V1, 1);
+  }else if (vpd >= max)
+  {
+    digitalWrite(FAN, LOW);
+    Blynk.virtualWrite(V1, 0);
+  }
+  
+}
+BLYNK_WRITE(V0)
+{
+  if (param.asInt()==1){
+    digitalWrite(LED, HIGH);
+  }else{
+    digitalWrite(LED, LOW);
+  }
+}
+
+BLYNK_CONNECTED()
+{
+  Blynk.syncVirtual(V0);  // will cause BLYNK_WRITE(V0) to be executed
 }
 
 void setup()   {
@@ -114,11 +152,19 @@ void setup()   {
 
   delay(250); // wait for the OLED to power up
   display.begin(i2c_Address, true); // Address 0x3C default
+  display.setRotation(2);
   display.setContrast (1); // dim display
   display.display();
   dht.setup(D0, DHTesp::DHT22);
   Blynk.begin(auth, ssid, pass);
-  timer.setInterval((dht.getMinimumSamplingPeriod()), sendData);
+  timer.setInterval((dht.getMinimumSamplingPeriod()), getData);
+  timer.setInterval(10000, sendData);
+  getData();
+  sendData();
+  pinMode (FAN, OUTPUT);
+  pinMode(LED, OUTPUT);
+
+
 
 }
 
@@ -126,5 +172,7 @@ void loop()
 {
   Blynk.run();
   timer.run();
+  updateDisplay(hum, temp, vpd);
+  handleExhaust(vpd);
 }
 
