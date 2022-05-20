@@ -36,8 +36,10 @@ DHTesp dht;
 float vpd;
 float temp;
 float hum;
+int light;
 const uint8_t FAN = D4;
 const uint8_t LED = D6;
+const uint8_t Sensor_LED = D8;
 
 
 float measureHum() {
@@ -56,52 +58,54 @@ float getVPD(float hum, float temp) { // calcula vapor preasure deficit en kPa
  return vpd;
 }
 
-void printCenterText(const String &str, int x, int y){ // toma una string y unas coordenadas iniciales e imprime el texto en el centro de la pantalla
-  int16_t x1, y1;
-  uint16_t w, h;
-  display.getTextBounds(str, x, y, &x1, &y1, &w, &h); //devuelve las medidas del cuadro de texto
-  display.setCursor(x + 64 - w / 2, y);
-  display.println(str);
+int measureLight() {
+  int light = digitalRead(Sensor_LED);
+  if (light == HIGH){
+    Blynk.virtualWrite(V6, 0);
+    return 0;
+  }else{
+    Blynk.virtualWrite(V6, 1);
+    return 1;
+  }
 }
 
-void updateDisplay(float hum, float temp, float vpd){ //tiene que haber alguna forma de optimizar esto
-  display.clearDisplay();
-  display.setTextSize(2);
-  display.setTextColor(SH110X_BLACK,SH110X_WHITE);
-  printCenterText(" Temp ",0,0);
-  display.setTextColor(SH110X_WHITE);
-  display.println(" ");
-  display.setTextSize(3);
-//  std::string str1 = std::to_string(temp); tratar de pasar float temp a string para aplicar printCenterText()
-//  printCenterText(str1,0,0);
-  display.print(temp);
-  display.setTextSize(2);display.println(" C");
-  display.display();
-  delay(2500);
+// void printCenterText(const String &str, int x, int y){ // toma una string y unas coordenadas iniciales e imprime el texto en el centro de la pantalla
+//   int16_t x1, y1;
+//   uint16_t w, h;
+//   display.getTextBounds(str, x, y, &x1, &y1, &w, &h); //devuelve las medidas del cuadro de texto
+//   display.setCursor(x + 64 - w / 2, y);
+//   display.println(str);
+// }
 
+void updateDisplay(float hum, float temp, float vpd, int light){ 
   display.clearDisplay();
+  display.setCursor(0,0);
   display.setTextSize(2);
-  display.setTextColor(SH110X_BLACK,SH110X_WHITE);
-  printCenterText(" Humedad ",0,0);
   display.setTextColor(SH110X_WHITE);
-  display.println(" ");
-  display.setTextSize(3);
+  display.print("Temp:");
+  display.print(temp);
+  display.setTextSize(1);display.println("C");display.println(' ');
+
+  display.setTextSize(2);
+  display.print("RH:");
   display.print(hum);
-  display.setTextSize(2);display.print(" %");
-  display.display();
-  delay(2500);
-   
-  display.clearDisplay();
+  display.setTextSize(1);display.println("%");display.println(' ');
+
   display.setTextSize(2);
-  display.setTextColor(SH110X_BLACK,SH110X_WHITE);
-  printCenterText(" VPD ",0,0);
   display.setTextColor(SH110X_WHITE);
-  display.println(" ");
-  display.setTextSize(3);
+  display.print("VPD:");
   display.print(vpd);
-  display.setTextSize(2);display.println(" kPa");
+  display.setTextSize(1);display.println("kPa");display.println(' ');
+
+  display.setTextSize(2);
+  display.setTextColor(SH110X_WHITE);
+  display.print("Luz:");
+  if (light==1){
+    display.print("ON");
+  }else{
+    display.print("OFF");
+  }
   display.display();
-  delay(2500);
 
 }
 
@@ -109,6 +113,7 @@ void getData() {
   temp = measureTemp(); 
   hum = measureHum();  
   vpd = getVPD(hum, temp);
+  light = measureLight();
 }
 
 void sendData()
@@ -116,11 +121,13 @@ void sendData()
   Blynk.virtualWrite(V4, vpd);  
   Blynk.virtualWrite(V3, temp);
   Blynk.virtualWrite(V2, hum);
+  updateDisplay(hum, temp, vpd, light);
+  Serial.print(light);
 }
 
 
 void handleExhaust(float vpd){
-  float min = 0.5;
+  float min = 0.5; //seedlings
   float max = 0.7 ; 
   if (vpd <= min){
     digitalWrite(FAN, HIGH);
@@ -152,8 +159,7 @@ void setup()   {
 
   delay(250); // wait for the OLED to power up
   display.begin(i2c_Address, true); // Address 0x3C default
-  display.setRotation(2);
-  display.setContrast (1); // dim display
+  display.setContrast (-1); // dim display
   display.display();
   dht.setup(D0, DHTesp::DHT22);
   Blynk.begin(auth, ssid, pass);
@@ -163,7 +169,7 @@ void setup()   {
   sendData();
   pinMode (FAN, OUTPUT);
   pinMode(LED, OUTPUT);
-
+  pinMode(Sensor_LED, INPUT);
 
 
 }
@@ -172,7 +178,6 @@ void loop()
 {
   Blynk.run();
   timer.run();
-  updateDisplay(hum, temp, vpd);
   handleExhaust(vpd);
 }
 
