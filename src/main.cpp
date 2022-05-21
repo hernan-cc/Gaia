@@ -27,16 +27,12 @@ Adafruit_SH1106G display = Adafruit_SH1106G(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, 
 #include "DHTesp.h"
 DHTesp dht;
 
-// mantener VPD entre 0.5 y 0.7 con extractor
-
-
-// prender extractor siempre en rh > 70% durante 10 min
-
-
 float vpd;
 float temp;
 float hum;
 int light;
+float vpdMax;
+float vpdMin;
 const uint8_t FAN = D4;
 const uint8_t LED = D6;
 const uint8_t Sensor_LED = D8;
@@ -122,13 +118,12 @@ void sendData()
   Blynk.virtualWrite(V3, temp);
   Blynk.virtualWrite(V2, hum);
   updateDisplay(hum, temp, vpd, light);
-  Serial.print(light);
 }
 
 
-void handleExhaust(float vpd){
-  float min = 0.5; //seedlings
-  float max = 0.7 ; 
+void handleExhaust(float vpd, float vpdMax, float vpdMin){
+  float min = vpdMin; //seedlings
+  float max = vpdMax; 
   if (vpd <= min){
     digitalWrite(FAN, HIGH);
     Blynk.virtualWrite(V1, 1);
@@ -147,10 +142,21 @@ BLYNK_WRITE(V0)
     digitalWrite(LED, LOW);
   }
 }
+BLYNK_WRITE(V7)
+{
+  vpdMin = param.asFloat();
+}
+BLYNK_WRITE(V8)
+{
+  vpdMax = param.asFloat();
+}
+
 
 BLYNK_CONNECTED()
 {
-  Blynk.syncVirtual(V0);  // will cause BLYNK_WRITE(V0) to be executed
+  Blynk.syncVirtual(V0);
+  Blynk.syncVirtual(V7);
+  Blynk.syncVirtual(V8);  // will cause BLYNK_WRITE(V0) to be executed
 }
 
 void setup()   {
@@ -178,6 +184,6 @@ void loop()
 {
   Blynk.run();
   timer.run();
-  handleExhaust(vpd);
+  handleExhaust(vpd, vpdMax, vpdMin);
 }
 
