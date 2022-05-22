@@ -33,9 +33,12 @@ float hum;
 int light;
 float vpdMax;
 float vpdMin;
+float tempMax;
+float tempMin;
 const uint8_t FAN = D4;
 const uint8_t LED = D6;
 const uint8_t Sensor_LED = D8;
+const uint8_t HEAT = D7;
 
 
 float measureHum() {
@@ -132,8 +135,19 @@ void handleExhaust(float vpd, float vpdMax, float vpdMin){
     digitalWrite(FAN, LOW);
     Blynk.virtualWrite(V1, 0);
   }
-  
 }
+
+void handleHeat(float temp, float vpd, float tempMin, float tempMax, float vpdMin, float vpdMax){
+  if (temp <= tempMin || vpd <= vpdMin){
+    digitalWrite(HEAT, LOW);
+    Blynk.virtualWrite(V9, 0);
+  }else if (temp >= tempMax || vpd >= vpdMax){
+    digitalWrite(HEAT, HIGH);
+    Blynk.virtualWrite(V9, 1);
+  }
+}
+  
+
 BLYNK_WRITE(V0)
 {
   if (param.asInt()==1){
@@ -150,13 +164,22 @@ BLYNK_WRITE(V8)
 {
   vpdMax = param.asFloat();
 }
-
+BLYNK_WRITE(V10)
+{
+  tempMin = param.asFloat();
+}
+BLYNK_WRITE(V11)
+{
+  tempMax = param.asFloat();
+}
 
 BLYNK_CONNECTED()
 {
   Blynk.syncVirtual(V0);
   Blynk.syncVirtual(V7);
   Blynk.syncVirtual(V8);  // will cause BLYNK_WRITE(V0) to be executed
+  Blynk.syncVirtual(V10);
+  Blynk.syncVirtual(V11);
 }
 
 void setup()   {
@@ -176,6 +199,7 @@ void setup()   {
   pinMode (FAN, OUTPUT);
   pinMode(LED, OUTPUT);
   pinMode(Sensor_LED, INPUT);
+  pinMode(HEAT, OUTPUT);
 
 
 }
@@ -185,5 +209,6 @@ void loop()
   Blynk.run();
   timer.run();
   handleExhaust(vpd, vpdMax, vpdMin);
+  handleHeat(temp, vpd, tempMin, tempMax, vpdMin, vpdMax);
 }
 
