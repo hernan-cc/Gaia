@@ -7,7 +7,7 @@
 #include <BlynkSimpleEsp8266.h>
 
 char auth[] = BLYNK_AUTH_TOKEN;
-char ssid[] = "HCC";
+char ssid[] = "HCC 2.4";
 char pass[] = "caravana";
 
 BlynkTimer timer;
@@ -137,11 +137,11 @@ void handleExhaust(float vpd, float vpdMax, float vpdMin){
   }
 }
 
-void handleHeat(float temp, float vpd, float tempMin, float tempMax, float vpdMin, float vpdMax){
-  if (temp <= tempMin || vpd <= vpdMin){
+void handleHeat(float temp, float tempMin, float tempMax){
+  if (temp <= tempMin){
     digitalWrite(HEAT, LOW);
     Blynk.virtualWrite(V9, 0);
-  }else if (temp >= tempMax || vpd >= vpdMax){
+  }else if (temp >= tempMax){
     digitalWrite(HEAT, HIGH);
     Blynk.virtualWrite(V9, 1);
   }
@@ -209,6 +209,6 @@ void loop()
   Blynk.run();
   timer.run();
   handleExhaust(vpd, vpdMax, vpdMin);
-  handleHeat(temp, vpd, tempMin, tempMax, vpdMin, vpdMax);
+  handleHeat(temp, tempMin, tempMax);
 }
 
