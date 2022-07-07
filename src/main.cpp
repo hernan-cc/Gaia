@@ -195,7 +195,7 @@ void setup()   {
   display.display();
   dht.setup(D0, DHTesp::DHT22);
   Blynk.begin(auth, ssid, pass);
-  timer.setInterval((dht.getMinimumSamplingPeriod()), getData);
+  timer.setInterval(10000, getData);
   timer.setInterval(10000, sendData);
   getData();
   sendData();
