@@ -35,6 +35,7 @@ float vpdMax;
 float vpdMin;
 float tempMax;
 float tempMin;
+int heatOn = 1;
 const uint8_t FAN = D4;
 const uint8_t LED = D6;
 const uint8_t Sensor_LED = D8;
@@ -57,16 +58,16 @@ float getVPD(float hum, float temp) { // calcula vapor preasure deficit en kPa
  return vpd;
 }
 
-int measureLight() {
-  int light = digitalRead(Sensor_LED);
-  if (light == HIGH){
-    Blynk.virtualWrite(V6, 0);
-    return 0;
-  }else{
-    Blynk.virtualWrite(V6, 1);
-    return 1;
-  }
-}
+// int measureLight() {
+//   int light = digitalRead(Sensor_LED);
+//   if (light == HIGH){
+//     Blynk.virtualWrite(V6, 0);
+//     return 0;
+//   }else{
+//     Blynk.virtualWrite(V6, 1);
+//     return 1;
+//   }
+// }
 
 // void printCenterText(const String &str, int x, int y){ // toma una string y unas coordenadas iniciales e imprime el texto en el centro de la pantalla
 //   int16_t x1, y1;
@@ -77,6 +78,7 @@ int measureLight() {
 // }
 
 void updateDisplay(float hum, float temp, float vpd, int light){ 
+  display.setRotation(2);
   display.clearDisplay();
   display.setCursor(0,0);
   display.setTextSize(2);
@@ -96,14 +98,14 @@ void updateDisplay(float hum, float temp, float vpd, int light){
   display.print(vpd);
   display.setTextSize(1);display.println("kPa");display.println(' ');
 
-  display.setTextSize(2);
-  display.setTextColor(SH110X_WHITE);
-  display.print("Luz:");
-  if (light==1){
-    display.print("ON");
-  }else{
-    display.print("OFF");
-  }
+  // display.setTextSize(2);
+  // display.setTextColor(SH110X_WHITE);
+  // display.print("Luz:");
+  // if (light==1){
+  //   display.print("ON");
+  // }else{
+  //   display.print("OFF");
+  // }
   display.display();
 
 }
@@ -112,7 +114,7 @@ void getData() {
   temp = measureTemp(); 
   hum = measureHum();  
   vpd = getVPD(hum, temp);
-  light = measureLight();
+  // light = measureLight();
 }
 
 void sendData()
@@ -125,7 +127,7 @@ void sendData()
 
 
 void handleExhaust(float vpd, float vpdMax, float vpdMin){
-  float min = vpdMin; //seedlings
+  float min = vpdMin; 
   float max = vpdMax; 
   if (vpd <= min){
     digitalWrite(FAN, HIGH);
@@ -137,16 +139,16 @@ void handleExhaust(float vpd, float vpdMax, float vpdMin){
   }
 }
 
-void handleHeat(float temp, float tempMin, float tempMax){
-  if (temp <= tempMin){
-    digitalWrite(HEAT, LOW);
-    Blynk.virtualWrite(V9, 0);
-  }else if (temp >= tempMax){
+void handleHeat(float temp, float tempMin, float tempMax, float vpdMax, float vpd){
+  if (temp <= tempMin && vpd < (vpdMax - 0.15)){
     digitalWrite(HEAT, HIGH);
+    Blynk.virtualWrite(V9, 0);
+  }else if (temp >= tempMax || vpd >= vpdMax){
+    digitalWrite(HEAT, LOW);
     Blynk.virtualWrite(V9, 1);
   }
 }
-  
+
 
 BLYNK_WRITE(V0)
 {
@@ -180,6 +182,7 @@ BLYNK_CONNECTED()
   Blynk.syncVirtual(V8);  // will cause BLYNK_WRITE(V0) to be executed
   Blynk.syncVirtual(V10);
   Blynk.syncVirtual(V11);
+  Blynk.syncVirtual(V12);
 }
 
 void setup()   {
@@ -209,6 +212,6 @@ void loop()
   Blynk.run();
   timer.run();
   handleExhaust(vpd, vpdMax, vpdMin);
-  handleHeat(temp, tempMin, tempMax);
+  handleHeat(temp, tempMin, tempMax, vpdMax, vpd);
 }
 
